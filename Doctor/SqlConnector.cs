@@ -106,6 +106,27 @@ namespace SqlExplorer
             onClose?.Invoke(connection);
         }
 
+        public void Read(string sql, Action<SqlDataReader> processRow, Action<SqlCommand> configureCommand)
+        {
+            if (connection.State != ConnectionState.Open)
+                Open();
+
+            using (SqlCommand command = new SqlCommand(sql, connection))
+            {
+                configureCommand?.Invoke(command);
+
+                using (SqlDataReader reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        processRow(reader);
+                    }
+                }
+            }
+
+            onRead?.Invoke(connection);
+        }
+
         /// <summary>
         /// Выполняет оператор SELECT и вызывает переданную лямбду для обработки каждой строки.
         /// </summary>
@@ -113,19 +134,7 @@ namespace SqlExplorer
         /// <param name="processRow">Лямбда, которая обрабатывает каждую строку</param>
         public void Read(string sql, Action<SqlDataReader> processRow)
         {
-            if (connection.State != ConnectionState.Open)
-                Open();
-
-            using (SqlCommand command = new SqlCommand(sql, connection))
-            using (SqlDataReader reader = command.ExecuteReader())
-            {
-                while (reader.Read())
-                {
-                    processRow(reader);
-                }
-            }
-
-            onRead?.Invoke(connection);
+            Read(sql, processRow, null);
         }
 
         /// <summary>

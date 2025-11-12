@@ -179,6 +179,7 @@
     <Compile Include="Connect.xaml.cs">
       <DependentUpon>Connect.xaml</DependentUpon>
     </Compile>
+    <Compile Include="DoctorCore.cs" />
     <Compile Include="SqlConnector.cs" />
     <Page Include="Connect.xaml">
       <SubType>Designer</SubType>
