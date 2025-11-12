@@ -4,9 +4,6 @@ using System.Windows;
 
 namespace Doctor
 {
-    /// <summary>
-    /// Логика взаимодействия для MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window
     {
         private static readonly List<string> SqlQueries = new List<string>
