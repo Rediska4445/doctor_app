@@ -1,19 +1,22 @@
 ﻿using SqlExplorer;
-using System;
+
 using System.Collections.Generic;
 
 namespace Doctor
 {
-    public class Permission
-    {
-        public int id;
-
-        public string name;
-    }
-
     public class DoctorCore
     {
         public static DoctorCore core = new DoctorCore();
+
+        public DoctorDataBaseWrapper wrapper;
+        public SqlConnector sqlConnector = new SqlConnector();
+
+        public DoctorCore()
+        {
+            PrepareSqlWorkspace();
+
+            wrapper = new DoctorDataBaseWrapper(sqlConnector);
+        }
 
         public readonly List<string> InitSqlQueries = new List<string>
         {
@@ -122,25 +125,6 @@ namespace Doctor
                 INSERT INTO permissions(id, name) VALUES (3, 'Viewer');
             "
         };
-
-        public SqlConnector sqlConnector = new SqlConnector();
-
-        public DoctorCore()
-        {
-            PrepareSqlWorkspace();
-        }
-
-        public Dictionary<int, Permission> permissions = new Dictionary<int, Permission>
-        {
-            [1] = new Permission { name = "Admin", id = 1 },
-            [2] = new Permission { name = "Manager", id = 2 },
-            [3] = new Permission { name = "Viewer", id = 3 }
-        };
-
-        public Permission DeterminePermission(int id)
-        {
-            return permissions[id];
-        }
 
         public void PrepareSqlWorkspace()
         {

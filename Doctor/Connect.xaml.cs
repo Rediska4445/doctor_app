@@ -24,37 +24,32 @@ namespace Doctor
                 return;
             }
 
-            bool userFound = false;
-            int userId = 0;
-            int permissionId = 0;
-            string userName = null;
-
-            string sql = "SELECT id, permission_id, name FROM users WHERE name = @name AND password = @password";
+            int? userId = null;
+            string sql = "SELECT id FROM users WHERE name = @name AND password = @password";
 
             DoctorCore.core.sqlConnector.Read(sql, reader =>
             {
-                userFound = true;
                 userId = reader.GetInt32(0);
-                permissionId = reader.GetInt32(1);
-                userName = reader.GetString(2);
-            }, command =>
+            }, cmd =>
             {
-                command.Parameters.AddWithValue("@name", inputName);
-                command.Parameters.AddWithValue("@password", inputPassword);
+                cmd.Parameters.AddWithValue("@name", inputName);
+                cmd.Parameters.AddWithValue("@password", inputPassword);
             });
 
-            if (!userFound)
+            if (userId == null)
             {
                 LoginMessage.Text = "Пользователь не зарегистрирован или неправильный пароль.";
                 LoginMessage.Foreground = Brushes.Red;
                 return;
             }
 
+            User user = DoctorCore.core.wrapper.userServiceObj.Get(userId.Value);
+
             LoginMessage.Text = "Вход выполнен успешно!";
             LoginMessage.Foreground = Brushes.Green;
 
             MainWindow main = new MainWindow();
-            main.Title = "Doctor - " + DoctorCore.core.DeterminePermission(permissionId).name;
+            main.Title = "Doctor - " + user.permission.name;
             main.Show();
             this.Close();
         }
@@ -71,31 +66,17 @@ namespace Doctor
                 return;
             }
 
-            bool exists = false;
-            string checkSql = "SELECT COUNT(*) FROM users WHERE name = @name";
-
-            DoctorCore.core.sqlConnector.Read(checkSql, reader =>
-            {
-                int count = reader.GetInt32(0);
-                exists = count > 0;
-            }, command =>
-            {
-                command.Parameters.AddWithValue("@name", regName);
-            });
-
-            if (exists)
+            if (DoctorCore.core.wrapper.userServiceObj.IsExists(regName))
             {
                 RegisterMessage.Text = "Пользователь с таким именем уже существует.";
                 RegisterMessage.Foreground = Brushes.Red;
                 return;
             }
 
-            string insertSql = "INSERT INTO users (permission_id, name, password) VALUES (3, @name, @password)";
-            DoctorCore.core.sqlConnector.Push(insertSql, command =>
-            {
-                command.Parameters.AddWithValue("@name", regName);
-                command.Parameters.AddWithValue("@password", regPassword);
-            });
+            Permission defaultPermission = DoctorCore.core.wrapper.permissionServiceObj.Get(3); // Viewer
+
+            User newUser = new User(null, defaultPermission, regName, regPassword);
+            DoctorCore.core.wrapper.userServiceObj.Add(newUser);
 
             RegisterMessage.Text = "Регистрация прошла успешно!";
             RegisterMessage.Foreground = Brushes.Green;

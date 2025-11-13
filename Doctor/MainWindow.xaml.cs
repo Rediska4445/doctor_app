@@ -48,5 +48,12 @@ namespace Doctor
                     break;
             }
         }
+
+        private void LogoutButton_Click(object sender, RoutedEventArgs e)
+        {
+            Connect connectWindow = new Connect();
+            connectWindow.Show(); 
+            this.Close();
+        }
     }
 }
