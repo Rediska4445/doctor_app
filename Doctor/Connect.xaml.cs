@@ -8,6 +8,8 @@ namespace Doctor
         public Connect()
         {
             InitializeComponent();
+
+            DoctorCore.core.PrepareSqlWorkspace();
         }
 
         private void Button_Click_1(object sender, RoutedEventArgs e)

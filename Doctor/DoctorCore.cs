@@ -13,8 +13,6 @@ namespace Doctor
 
         public DoctorCore()
         {
-            PrepareSqlWorkspace();
-
             wrapper = new DoctorDataBaseWrapper(sqlConnector);
         }
 
@@ -24,6 +22,7 @@ namespace Doctor
             IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = 'doctor_test')
             BEGIN
                 CREATE DATABASE doctor_test;
+                ALTER DATABASE doctor_test COLLATE Cyrillic_General_CI_AS;
             END;
             ",
             "USE doctor_test;",

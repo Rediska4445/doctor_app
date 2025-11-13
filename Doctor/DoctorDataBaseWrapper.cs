@@ -13,6 +13,7 @@ namespace Doctor
         public PermissionService permissionServiceObj;
 
         public DiseaseService diseaseServiceObj;
+        public MedicineService medicineServiceObj;
 
         public DoctorDataBaseWrapper(SqlConnector sqlConnectorPointer)
         {
@@ -21,6 +22,7 @@ namespace Doctor
             userServiceObj = new UserService(this.sqlConnectorPointer);
             permissionServiceObj = new PermissionService(this.sqlConnectorPointer);
             diseaseServiceObj = new DiseaseService(this.sqlConnectorPointer);
+            medicineServiceObj = new MedicineService(this.sqlConnectorPointer);
         }
 
         public class UserService
@@ -223,6 +225,76 @@ namespace Doctor
                 this.sqlConnectorPointer = sqlConnectorPointer;
             }
 
+            public void LoadAllDiseases(Action<Disease> onDiseaseLoaded, Action onCompleted)
+            {
+                var diseases = new List<Disease>();
+                sqlConnectorPointer.Read("SELECT id, name, procedures FROM disease", reader =>
+                {
+                    diseases.Add(new Disease(reader.GetString(1), reader.GetString(2), new List<Medicine>(), new List<Symptom>())
+                    {
+                        id = reader.GetInt32(0)
+                    });
+                });
+
+                var symptoms = new Dictionary<int, List<Symptom>>();
+                sqlConnectorPointer.Read(@"
+                    SELECT ds.disease_id, s.id, s.name
+                    FROM diseases_symptoms ds
+                    JOIN symptoms s ON ds.symptom_id = s.id", reader =>
+                {
+                    int diseaseId = reader.GetInt32(0);
+                    var symptom = new Symptom(reader.GetString(2)) { id = reader.GetInt32(1) };
+                    if (!symptoms.ContainsKey(diseaseId))
+                        symptoms[diseaseId] = new List<Symptom>();
+                    symptoms[diseaseId].Add(symptom);
+                });
+
+                var medicines = new Dictionary<int, List<Medicine>>();
+                sqlConnectorPointer.Read(@"
+                    SELECT dm.diseases_id, m.id, m.name, dm.quantity
+                    FROM diseases_medicines dm
+                    JOIN medicines m ON dm.medicines_id = m.id", reader =>
+                {
+                    int diseaseId = reader.GetInt32(0);
+                    var medicine = new Medicine(reader.GetString(2), reader.GetInt32(3), new List<Medicine>()) { id = reader.GetInt32(1) };
+                    if (!medicines.ContainsKey(diseaseId))
+                        medicines[diseaseId] = new List<Medicine>();
+                    medicines[diseaseId].Add(medicine);
+                });
+
+                var interchangeable = new Dictionary<int, List<Medicine>>();
+                sqlConnectorPointer.Read(@"
+                    SELECT im.medicine_id, m.id, m.name, m.quantity
+                    FROM interchangeable_medicines im
+                    JOIN medicines m ON im.interchangeable_id = m.id", reader =>
+                {
+                    int medicineId = reader.GetInt32(0);
+                    var med = new Medicine(reader.GetString(2), reader.GetInt32(3), new List<Medicine>()) { id = reader.GetInt32(1) };
+                    if (!interchangeable.ContainsKey(medicineId))
+                        interchangeable[medicineId] = new List<Medicine>();
+                    interchangeable[medicineId].Add(med);
+                });
+
+                foreach (var disease in diseases)
+                {
+                    if (symptoms.TryGetValue(disease.id ?? 0, out var symList))
+                        disease.Symptoms = symList;
+                    if (medicines.TryGetValue(disease.id ?? 0, out var medList))
+                    {
+                        foreach (var med in medList)
+                        {
+                            if (interchangeable.TryGetValue(med.id ?? 0, out var interList))
+                                med.interchangleMedicineList = interList;
+                        }
+                        disease.Medicines = medList;
+                    }
+
+                    onDiseaseLoaded?.Invoke(disease);
+                }
+
+                onCompleted?.Invoke();
+            }
+
             public Disease GetDiseaseByName(string name)
             {
                 Disease disease = null;
@@ -290,6 +362,59 @@ namespace Doctor
                 disease.Medicines = medicines;
                 return disease;
             }
+        }
+
+        public class MedicineService
+        {
+            private SqlConnector sqlConnectorPointer;
+
+            public MedicineService(SqlConnector sqlConnectorPointer)
+            {
+                this.sqlConnectorPointer = sqlConnectorPointer;
+            }
+
+            public List<Medicine> GetAllMedicines()
+            {
+                var medicines = new List<Medicine>();
+
+                sqlConnectorPointer.Read(@"
+                    SELECT id, name, quantity 
+                    FROM medicines",
+                    reader =>
+                    {
+                        int id = reader.GetInt32(0);
+                        string name = reader.GetString(1);
+                        int quantity = reader.GetInt32(2);
+
+                        var medicine = new Medicine(name, quantity, new List<Medicine>()) { id = id };
+
+                        medicines.Add(medicine);
+                    });
+
+                foreach (var med in medicines)
+                {
+                    sqlConnectorPointer.Read(@"
+                        SELECT m2.id, m2.name, m2.quantity
+                        FROM medicines m2
+                        JOIN interchangeable_medicines im ON m2.id = im.interchangeable_id
+                        WHERE im.medicine_id = @medicineId",
+                        reader =>
+                        {
+                            var interchangeableMedicine = new Medicine(reader.GetString(1), reader.GetInt32(2), new List<Medicine>())
+                            {
+                                id = reader.GetInt32(0)
+                            };
+                            med.interchangleMedicineList.Add(interchangeableMedicine);
+                        },
+                        cmd =>
+                        {
+                            cmd.Parameters.AddWithValue("@medicineId", med.id);
+                        });
+                }
+
+                return medicines;
+            }
+
         }
 
         public DoctorDataBaseWrapper SetSqlConnectorPointer(SqlConnector pointer)
