@@ -1,0 +1,132 @@
+﻿<UserControl x:Class="Doctor.Recipe"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Doctor"
+             MinHeight = "800" MinWidth = "800" mc:Ignorable="d" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+    <Border Background="LightGray" Margin="140,27,80,27" Padding="15" BorderBrush="Black" BorderThickness="1"
+           HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+        <Grid Margin="0,0,-6,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Text="Doctor" FontWeight="Bold" FontSize="28"
+                       HorizontalAlignment="Center" Margin="0,0,0,20" Grid.Row="0"/>
+
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" CanContentScroll="False" >
+                <Grid Margin="10" Background="White" MinHeight="650" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Name="ScrollViewList">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Text="Больничная справка" FontWeight="Bold" FontSize="24" TextAlignment="Center" Grid.Row="0" Margin="0,10,0,35" RenderTransformOrigin="0.5,0.5">
+                        <TextBlock.RenderTransform>
+                            <TransformGroup>
+                                <ScaleTransform/>
+                                <SkewTransform AngleX="0"/>
+                                <RotateTransform/>
+                                <TranslateTransform X="0"/>
+                            </TransformGroup>
+                        </TextBlock.RenderTransform>
+                    </TextBlock>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="1">
+                        <TextBlock Text="ФИО врача:" Width="200"  Padding="10,0,10,0" FontWeight="SemiBold"/>
+                        <TextBox 
+                                Margin="5,0,0,0"
+                                Name="DoctorNameTextBox" 
+                                MinWidth="310" 
+                                TextWrapping="Wrap"
+                                AcceptsReturn="True"
+                                VerticalScrollBarVisibility="Disabled"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="2">
+                        <TextBlock Text="ФИО пациента:" Width="200"  Padding="10,0,10,0" FontWeight="SemiBold"/>
+                        <TextBox Width="310" Margin="5,0,0,0" Name="PatientNameTextBox"
+                                MinWidth="310" 
+                                TextWrapping="Wrap"
+                                AcceptsReturn="True"
+                                VerticalScrollBarVisibility="Disabled"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="3">
+                        <TextBlock Text="Классификация врача:" Width="200" Padding="10,0,10,0"  FontWeight="SemiBold"/>
+                        <TextBox Margin="5,0,0,0" Name="DoctorClassificationTextBox" 
+                                MinWidth="310" 
+                                TextWrapping="Wrap"
+                                AcceptsReturn="True"
+                                VerticalScrollBarVisibility="Disabled"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="4">
+                        <TextBlock Text="Адрес больницы:" Width="200" Padding="10,0,10,0" FontWeight="SemiBold"/>
+                        <TextBox Margin="5,0,0,0" Name="HospitalAddressTextBox" 
+                                MinWidth="310" VerticalScrollBarVisibility="Disabled"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="5">
+                        <TextBlock Text="Диагноз:" Width="200" Padding="10,0,10,0" FontWeight="Medium"/>
+                        <TextBox Margin="5,0,0,0" Height="60"
+                                 Name="DiagnosisTextBox"
+                                MinWidth="310" 
+                                TextWrapping="Wrap"
+                                AcceptsReturn="True"
+                                VerticalScrollBarVisibility="Disabled"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="6">
+                        <TextBlock Text="Симптомы:" Width="200" Padding="10,0,10,0"  FontWeight="Medium"/>
+                        <TextBox Margin="5,0,0,0" Height="150" Name="SymptomsTextBox"
+                                MinWidth="310" 
+                                TextWrapping="Wrap"
+                                AcceptsReturn="True"
+                                VerticalScrollBarVisibility="Disabled"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="7">
+                        <TextBlock Text="Общий осмотр врача:" Width="200"  Padding="10,0,1,0" FontWeight="Medium"/>
+                        <TextBox Margin="5,0,0,0" Height="100"  Name="GeneralInspectionTextBox"
+                                MinWidth="310" 
+                                TextWrapping="Wrap"
+                                AcceptsReturn="True"
+                                VerticalScrollBarVisibility="Disabled"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="8">
+                        <TextBlock Text="Рекомендации:" Width="200" Padding="10,0,10,0" FontWeight="Medium"/>
+                        <TextBox Margin="5,0,0,0" Name="RecommendationsTextBox"
+                                MinWidth="310" 
+                                TextWrapping="Wrap"
+                                AcceptsReturn="True"
+                                VerticalScrollBarVisibility="Disabled"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="9">
+                        <TextBlock Text="Рецепт:" Width="200" Padding="10,0,10,0" FontWeight="Medium"/>
+                        <TextBox Margin="5,0,0,0" Height="100" Name="RecipeTextBox"
+                                MinWidth="310" 
+                                TextWrapping="Wrap"
+                                AcceptsReturn="True"
+                                VerticalScrollBarVisibility="Disabled"/>
+                    </StackPanel>
+                </Grid>
+            </ScrollViewer>
+
+            <Button Content="Печать" Grid.Row="2" Width="554" Height="35" HorizontalAlignment="Center" Margin="0,10,0,10"
+                    Click="PrintButton_Click"/>
+        </Grid>
+    </Border>
+</UserControl>

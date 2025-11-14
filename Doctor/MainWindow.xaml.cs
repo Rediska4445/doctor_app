@@ -2,8 +2,11 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using static Doctor.DoctorDataBaseWrapper;
 
 namespace Doctor
@@ -18,13 +21,33 @@ namespace Doctor
 
     class MedicineView
     {
+        public int? Id { get; set; }
         public string Name { get; set; }
         public int Quantity { get; set; }
         public string Interchangeable { get; set; }
+        public List<Medicine> InterchangeableList { get; set; }
     }
 
     public partial class MainWindow : Window
     {
+        private void LoadMedicines()
+        {
+            medicinesCollection.Clear();
+
+            DoctorCore.core.wrapper.medicineServiceObj.GetAllMedicines().ForEach(med =>
+            {
+                var medView = new MedicineView
+                {
+                    Id = med.id,
+                    Name = med.name,
+                    Quantity = med.quantity,
+                    Interchangeable = string.Join(", ", med.interchangleMedicineList.ConvertAll(i => i.name)),
+                    InterchangeableList = med.interchangleMedicineList
+                };
+                Application.Current.Dispatcher.Invoke(() => medicinesCollection.Add(medView));
+            });
+        }
+
         public MainWindow()
         {
             InitializeComponent();
@@ -38,10 +61,9 @@ namespace Doctor
         {
             diseasesCollection.Clear();
 
-            DoctorCore.core.wrapper.diseaseServiceObj.LoadAllDiseases(
+            DoctorCore.core.wrapper.diseaseServiceObj.LoadAll(
                 onDiseaseLoaded: disease =>
                 {
-                    // Преобразуем каждый disease в представление для таблицы
                     var diseaseView = new DiseaseView
                     {
                         Name = disease.name,
@@ -56,31 +78,12 @@ namespace Doctor
                         }) ?? new List<string>())
                     };
 
-                    // Добавляем в коллекцию (в UI потоке)
                     Application.Current.Dispatcher.Invoke(() => diseasesCollection.Add(diseaseView));
                 },
                 onCompleted: () =>
                 {
-                    // Здесь можно обработать окончание загрузки, если нужно
+
                 });
-        }
-
-        private void LoadMedicines()
-        {
-            medicinesCollection.Clear();
-
-            DoctorCore.core.wrapper.medicineServiceObj.GetAllMedicines().ForEach(med =>
-            {
-                var medView = new MedicineView
-                {
-                    Name = med.name,
-                    Quantity = med.quantity,
-                    Interchangeable = med.interchangleMedicineList != null && med.interchangleMedicineList.Count > 0
-                        ? string.Join(", ", med.interchangleMedicineList.ConvertAll(i => i.name))
-                        : string.Empty
-                };
-                Application.Current.Dispatcher.Invoke(() => medicinesCollection.Add(medView));
-            });
         }
 
         private void FunctionsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -110,38 +113,128 @@ namespace Doctor
                     LoadDiseases();
 
                     break;
-
                 case "Лекарства":
                     var dataGridMed = new DataGrid
                     {
-                        AutoGenerateColumns = true,
-                        IsReadOnly = true,
+                        AutoGenerateColumns = false, 
+                        IsReadOnly = false,
                         Margin = new Thickness(5),
-                        ItemsSource = medicinesCollection
+                        ItemsSource = medicinesCollection,
                     };
+
+                    dataGridMed.Columns.Add(new DataGridTextColumn
+                    {
+                        Header = "Id",
+                        Binding = new Binding("Id") { Mode = BindingMode.OneWay }
+                    });
+
+                    dataGridMed.Columns.Add(new DataGridTextColumn
+                    {
+                        Header = "Name",
+                        Binding = new Binding("Name")
+                        {
+                            Mode = BindingMode.TwoWay,
+                            UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
+                        }
+                    });
+
+                    dataGridMed.Columns.Add(new DataGridTextColumn
+                    {
+                        Header = "Quantity",
+                        Binding = new Binding("Quantity")
+                        {
+                            Mode = BindingMode.TwoWay,
+                            UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
+                        }
+                    });
+
+                    dataGridMed.Columns.Add(new DataGridTextColumn
+                    {
+                        Header = "Interchangeable",
+                        Binding = new Binding("InterchangeableNames")
+                        {
+                            Mode = BindingMode.TwoWay,
+                            UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
+                        }
+                    });
+
+                    dataGridMed.CellEditEnding += DataGridMed_CellEditEnding;
 
                     FunctionContent.Content = dataGridMed;
                     medicinesCollection.Clear();
+
                     LoadMedicines();
-
                     break;
-
                 case "Рецепт":
-                    var formGrid = new Grid();
-                    FunctionContent.Content = formGrid;
-                    break;
+                    var recipeView = new Recipe();
 
+                    ScrollViewer scrollViewer = new ScrollViewer
+                    {
+                        Content = recipeView,
+                        HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                        VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    };
+
+                    FunctionContent.Content = scrollViewer;
+                    break;
                 default:
                     FunctionContent.Content = null;
                     break;
+
             }
         }
+
+        private List<Medicine> changedMedicines = new List<Medicine>();
+
+        private void DataGridMed_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+        {
+            if (e.EditAction == DataGridEditAction.Commit)
+            {
+                var editedItem = e.Row.Item as MedicineView;
+                if (editedItem != null)
+                {
+                    var editingElement = e.EditingElement as TextBox;
+                    string text = editingElement?.Text ?? "";
+
+                    var interchangeableList = text.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                                                 .Select(s => s.Trim())
+                                                 .ToList();
+
+                    var medicine = new Medicine(editedItem.Name, editedItem.Quantity, editedItem.InterchangeableList)
+                    {
+                        id = editedItem.Id
+                    };
+
+                    if (!changedMedicines.Any(m => m.name == medicine.name && m.quantity == medicine.quantity))
+                    {
+                        changedMedicines.Add(medicine);
+                    }
+
+                    ConsoleTextBox.Text += $"Изменена запись: {editedItem.Name} с количеством {medicine.quantity}\n";
+                }
+            }
+        }
+
 
         private void LogoutButton_Click(object sender, RoutedEventArgs e)
         {
             Connect connectWindow = new Connect();
-            connectWindow.Show(); 
+            connectWindow.Show();
             this.Close();
+        }
+
+        private void SaveButton_Click(object sender, RoutedEventArgs e)
+        {
+            ConsoleTextBox.Text += changedMedicines.Count;
+
+            foreach(Medicine med in changedMedicines)
+            {
+                ConsoleTextBox.Text += "SUKA: " + med.id + " " + med.name + " " + med.quantity + "\n";
+            }
+
+            DoctorCore.core.wrapper.medicineServiceObj.SaveAll(changedMedicines);
+
+            changedMedicines.Clear();
         }
     }
 }

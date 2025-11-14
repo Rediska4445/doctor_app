@@ -11,6 +11,8 @@ namespace Doctor
         public DoctorDataBaseWrapper wrapper;
         public SqlConnector sqlConnector = new SqlConnector();
 
+        public User user;
+
         public DoctorCore()
         {
             wrapper = new DoctorDataBaseWrapper(sqlConnector);

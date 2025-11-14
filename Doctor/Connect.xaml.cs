@@ -10,6 +10,9 @@ namespace Doctor
             InitializeComponent();
 
             DoctorCore.core.PrepareSqlWorkspace();
+
+            LoginName.Text = "adminin";
+            LoginPassword.Password = "pass";
         }
 
         private void Button_Click_1(object sender, RoutedEventArgs e)
@@ -50,6 +53,8 @@ namespace Doctor
             LoginMessage.Text = "Вход выполнен успешно!";
             LoginMessage.Foreground = Brushes.Green;
 
+            DoctorCore.core.user = user;
+
             MainWindow main = new MainWindow();
             main.Title = "Doctor - " + user.permission.name;
             main.Show();
@@ -75,13 +80,15 @@ namespace Doctor
                 return;
             }
 
-            Permission defaultPermission = DoctorCore.core.wrapper.permissionServiceObj.Get(3); // Viewer
+            Permission defaultPermission = DoctorCore.core.wrapper.permissionServiceObj.Get(4); // Viewer
 
             User newUser = new User(null, defaultPermission, regName, regPassword);
             DoctorCore.core.wrapper.userServiceObj.Add(newUser);
 
             RegisterMessage.Text = "Регистрация прошла успешно!";
             RegisterMessage.Foreground = Brushes.Green;
+
+            DoctorCore.core.user = newUser;
         }
     }
 }

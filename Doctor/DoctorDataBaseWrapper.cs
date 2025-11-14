@@ -5,6 +5,14 @@ using System.Windows.Documents;
 
 namespace Doctor
 {
+    public static class Permissions
+    {
+        public static readonly int ADMIN = 1;
+        public static readonly int MANAGER = 2;
+        public static readonly int DOCTOR = 3;
+        public static readonly int VIEWER = 4;
+    }
+
     public class DoctorDataBaseWrapper
     {
         private SqlConnector sqlConnectorPointer;
@@ -225,7 +233,7 @@ namespace Doctor
                 this.sqlConnectorPointer = sqlConnectorPointer;
             }
 
-            public void LoadAllDiseases(Action<Disease> onDiseaseLoaded, Action onCompleted)
+            public void LoadAll(Action<Disease> onDiseaseLoaded, Action onCompleted)
             {
                 var diseases = new List<Disease>();
                 sqlConnectorPointer.Read("SELECT id, name, procedures FROM disease", reader =>
@@ -244,8 +252,10 @@ namespace Doctor
                 {
                     int diseaseId = reader.GetInt32(0);
                     var symptom = new Symptom(reader.GetString(2)) { id = reader.GetInt32(1) };
+
                     if (!symptoms.ContainsKey(diseaseId))
                         symptoms[diseaseId] = new List<Symptom>();
+
                     symptoms[diseaseId].Add(symptom);
                 });
 
@@ -293,6 +303,73 @@ namespace Doctor
                 }
 
                 onCompleted?.Invoke();
+            }
+
+            public void SaveAll(List<Disease> diseases)
+            {
+                foreach (var disease in diseases)
+                {
+                    string sqlDisease = @"
+                        UPDATE disease SET name = @name, procedures = @procedures WHERE id = @id;
+                        IF @@ROWCOUNT = 0
+                        BEGIN
+                            INSERT INTO disease (id, name, procedures) VALUES (@id, @name, @procedures);
+                        END";
+
+                    sqlConnectorPointer.Push(sqlDisease, cmd =>
+                    {
+                        cmd.Parameters.AddWithValue("@id", disease.id ?? 0);
+                        cmd.Parameters.AddWithValue("@name", disease.name);
+                        cmd.Parameters.AddWithValue("@procedures", disease.procedures);
+                    });
+
+                    // Обновить симптомы: удалить старые связи и добавить заново
+                    sqlConnectorPointer.Push("DELETE FROM diseases_symptoms WHERE disease_id = @id", cmd =>
+                    {
+                        cmd.Parameters.AddWithValue("@id", disease.id ?? 0);
+                    });
+
+                    foreach (var symptom in disease.Symptoms)
+                    {
+                        sqlConnectorPointer.Push("INSERT INTO diseases_symptoms (disease_id, symptom_id) VALUES (@id, @symptomId)", cmd =>
+                        {
+                            cmd.Parameters.AddWithValue("@id", disease.id ?? 0);
+                            cmd.Parameters.AddWithValue("@symptomId", symptom.id ?? 0);
+                        });
+                    }
+
+                    // Обновить лекарства болезни аналогично: удалить старые связи и добавить заново
+                    sqlConnectorPointer.Push("DELETE FROM diseases_medicines WHERE diseases_id = @id", cmd =>
+                    {
+                        cmd.Parameters.AddWithValue("@id", disease.id ?? 0);
+                    });
+
+                    foreach (var med in disease.Medicines)
+                    {
+                        // Обновим или вставим лекарство
+                        string sqlMed = @"
+                UPDATE medicines SET name = @medName, quantity = @quantity WHERE id = @medId;
+                IF @@ROWCOUNT = 0
+                BEGIN
+                    INSERT INTO medicines (id, name, quantity) VALUES (@medId, @medName, @quantity);
+                END";
+
+                        sqlConnectorPointer.Push(sqlMed, cmd =>
+                        {
+                            cmd.Parameters.AddWithValue("@medId", med.id ?? 0);
+                            cmd.Parameters.AddWithValue("@medName", med.name);
+                            cmd.Parameters.AddWithValue("@quantity", med.quantity);
+                        });
+
+                        // Добавим связь болезнь-лекарство с указанием количества
+                        sqlConnectorPointer.Push("INSERT INTO diseases_medicines (medicines_id, diseases_id, quantity) VALUES (@medId, @diseaseId, @quantity)", cmd =>
+                        {
+                            cmd.Parameters.AddWithValue("@medId", med.id ?? 0);
+                            cmd.Parameters.AddWithValue("@diseaseId", disease.id ?? 0);
+                            cmd.Parameters.AddWithValue("@quantity", med.quantity);
+                        });
+                    }
+                }
             }
 
             public Disease GetDiseaseByName(string name)
@@ -415,6 +492,44 @@ namespace Doctor
                 return medicines;
             }
 
+            public void SaveAll(List<Medicine> medicines)
+            {
+                foreach (var med in medicines)
+                {
+                    string sql = @"
+                        UPDATE medicines 
+                        SET name = @name, quantity = @quantity
+                        WHERE id = @id;
+
+                        IF @@ROWCOUNT = 0
+                        BEGIN
+                            INSERT INTO medicines (id, name, quantity) VALUES (@id, @name, @quantity);
+                        END";
+
+                    sqlConnectorPointer.Push(sql, cmd =>
+                    {
+                        cmd.Parameters.AddWithValue("@id", med.id ?? 0);
+                        cmd.Parameters.AddWithValue("@name", med.name);
+                        cmd.Parameters.AddWithValue("@quantity", med.quantity);
+                    });
+
+                    sqlConnectorPointer.Push("DELETE FROM interchangeable_medicines WHERE medicine_id = @medId", cmd =>
+                    {
+                        cmd.Parameters.AddWithValue("@medId", med.id ?? 0);
+                    });
+
+                    foreach (var interMed in med.interchangleMedicineList)
+                    {
+                        sqlConnectorPointer.Push(@"
+                            INSERT INTO interchangeable_medicines (medicine_id, interchangeable_id)
+                            VALUES (@medId, @interId)", cmd =>
+                        {
+                            cmd.Parameters.AddWithValue("@medId", med.id ?? 0);
+                            cmd.Parameters.AddWithValue("@interId", interMed.id ?? 0);
+                        });
+                    }
+                }
+            }
         }
 
         public DoctorDataBaseWrapper SetSqlConnectorPointer(SqlConnector pointer)
