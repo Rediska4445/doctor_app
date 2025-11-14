@@ -11,21 +11,74 @@ using static Doctor.DoctorDataBaseWrapper;
 
 namespace Doctor
 {
-    class DiseaseView
+    class DiseaseView : INotifyPropertyChanged
     {
-        public string Name { get; set; }
-        public string Procedures { get; set; }
-        public string Symptoms { get; set; }
-        public string Medicines { get; set; }
+        private string name;
+        private string procedures;
+        private string symptoms;
+        private string medicines;
+
+        public string Name
+        {
+            get => name;
+            set { name = value; OnPropertyChanged(nameof(Name)); }
+        }
+        public string Procedures
+        {
+            get => procedures;
+            set { procedures = value; OnPropertyChanged(nameof(Procedures)); }
+        }
+        public string Symptoms
+        {
+            get => symptoms;
+            set { symptoms = value; OnPropertyChanged(nameof(Symptoms)); }
+        }
+        public string Medicines
+        {
+            get => medicines;
+            set { medicines = value; OnPropertyChanged(nameof(Medicines)); }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 
-    class MedicineView
+    class MedicineView : INotifyPropertyChanged
     {
+        public MedicineView()
+        {
+            Id = null; 
+        }
+
         public int? Id { get; set; }
-        public string Name { get; set; }
-        public int Quantity { get; set; }
-        public string Interchangeable { get; set; }
+
+        private string name;
+        public string Name
+        {
+            get => name;
+            set { name = value; OnPropertyChanged(nameof(Name)); }
+        }
+
+        private int quantity;
+        public int Quantity
+        {
+            get => quantity;
+            set { quantity = value; OnPropertyChanged(nameof(Quantity)); }
+        }
+
+        private string interchangeable;
+
+        public string Interchangeable
+        {
+            get => interchangeable;
+            set { interchangeable = value; OnPropertyChanged(nameof(Interchangeable)); }
+        }
+
         public List<Medicine> InterchangeableList { get; set; }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected void OnPropertyChanged(string propertyName) =>
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 
     public partial class MainWindow : Window
@@ -44,7 +97,11 @@ namespace Doctor
                     Interchangeable = string.Join(", ", med.interchangleMedicineList.ConvertAll(i => i.name)),
                     InterchangeableList = med.interchangleMedicineList
                 };
-                Application.Current.Dispatcher.Invoke(() => medicinesCollection.Add(medView));
+                Application.Current.Dispatcher.Invoke(() => {
+                    medicinesCollection.Add(medView);
+                    ConsoleTextBox.Text = "String: " + medView.Interchangeable + " LIST: "
+                    + (medView.InterchangeableList == null ? "null" : medView.InterchangeableList.Count.ToString()) + "\n";
+                });
             });
         }
 
@@ -117,7 +174,8 @@ namespace Doctor
                     var dataGridMed = new DataGrid
                     {
                         AutoGenerateColumns = false, 
-                        IsReadOnly = false,
+                        IsReadOnly = DoctorCore.core.user.permission.id == DoctorDataBasePermissions.ADMIN 
+                        || DoctorCore.core.user.permission.id == DoctorDataBasePermissions.MANAGER,
                         Margin = new Thickness(5),
                         ItemsSource = medicinesCollection,
                     };
@@ -151,7 +209,7 @@ namespace Doctor
                     dataGridMed.Columns.Add(new DataGridTextColumn
                     {
                         Header = "Interchangeable",
-                        Binding = new Binding("InterchangeableNames")
+                        Binding = new Binding("Interchangeable")
                         {
                             Mode = BindingMode.TwoWay,
                             UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
@@ -194,18 +252,49 @@ namespace Doctor
                 if (editedItem != null)
                 {
                     var editingElement = e.EditingElement as TextBox;
-                    string text = editingElement?.Text ?? "";
+                    string editedText = editingElement?.Text ?? "";
 
-                    var interchangeableList = text.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-                                                 .Select(s => s.Trim())
-                                                 .ToList();
+                    // Обновляем строку interchangeable и список взаимозаменяемых лекарств
+                    if (e.Column.Header.ToString() == "Interchangeable")
+                    {
+                        editedItem.Interchangeable = editedText;
+                        // Парсим строку в список
+                        var interchangeableNames = editedText.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                                                            .Select(s => s.Trim())
+                                                            .ToList();
 
+                        // Обновляем InterchangeableList на основании парсинга
+                        editedItem.InterchangeableList = medicinesCollection
+                            .Where(m => interchangeableNames.Contains(m.Name) && m.Id != editedItem.Id)
+                            .Select(m => new Medicine(m.Name, m.Quantity, m.InterchangeableList) { id = m.Id })
+                            .ToList();
+                    }
+                    else if (e.Column.Header.ToString() == "Name")
+                    {
+                        editedItem.Name = editedText;
+                    }
+                    else if (e.Column.Header.ToString() == "Quantity")
+                    {
+                        if (int.TryParse(editedText, out int qty))
+                            editedItem.Quantity = qty;
+                    }
+
+                    // Создаём объект Medicine для сохранения
                     var medicine = new Medicine(editedItem.Name, editedItem.Quantity, editedItem.InterchangeableList)
                     {
                         id = editedItem.Id
                     };
 
-                    if (!changedMedicines.Any(m => m.name == medicine.name && m.quantity == medicine.quantity))
+                    // Добавляем в список изменений
+                    var existing = changedMedicines.FirstOrDefault(m => m.id == medicine.id);
+                    if (existing != null)
+                    {
+                        // Обновляем данные
+                        existing.name = medicine.name;
+                        existing.quantity = medicine.quantity;
+                        existing.interchangleMedicineList = medicine.interchangleMedicineList;
+                    }
+                    else
                     {
                         changedMedicines.Add(medicine);
                     }
@@ -214,7 +303,6 @@ namespace Doctor
                 }
             }
         }
-
 
         private void LogoutButton_Click(object sender, RoutedEventArgs e)
         {
@@ -229,7 +317,8 @@ namespace Doctor
 
             foreach(Medicine med in changedMedicines)
             {
-                ConsoleTextBox.Text += "SUKA: " + med.id + " " + med.name + " " + med.quantity + "\n";
+                ConsoleTextBox.Text += "\nSUKA: " + med.id + " " + med.name + " " + med.quantity + "COUNT: "
+                    + (med.interchangleMedicineList == null ? "lol" : med.interchangleMedicineList.Count.ToString()) + "\n";
             }
 
             DoctorCore.core.wrapper.medicineServiceObj.SaveAll(changedMedicines);

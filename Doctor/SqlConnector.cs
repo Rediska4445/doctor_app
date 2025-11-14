@@ -139,24 +139,39 @@ namespace SqlExplorer
 
         /// <summary>
         /// Выполняет оператор INSERT/UPDATE/DELETE.
+        /// Не вызывает Execute.
         /// Перед выполнением вызывается переданный делегат для настройки команды.
         /// </summary>
         /// <param name="sql">SQL-команда</param>
         /// <param name="configureCommand">Лямбда для настройки SqlCommand (например, добавление параметров)</param>
-        public void Push(string sql, Action<SqlCommand> configureCommand)
+        public void RawPush(string sql, Action<SqlCommand> configureCommand)
         {
             if (connection.State != ConnectionState.Open)
                 Open();
 
             using (SqlCommand command = new SqlCommand(sql, connection))
             {
-                if(configureCommand != null) 
-                    configureCommand?.Invoke(command);
-
-                command.ExecuteNonQuery();
+                configureCommand.Invoke(command);
             }
 
             onPush?.Invoke(connection);
+        }
+
+        /// <summary>
+        /// Выполняет оператор INSERT/UPDATE/DELETE.
+        /// Перед выполнением вызывается переданный делегат для настройки команды.
+        /// </summary>
+        /// <param name="sql">SQL-команда</param>
+        /// <param name="configureCommand">Лямбда для настройки SqlCommand (например, добавление параметров)</param>
+        public void Push(string sql, Action<SqlCommand> configureCommand)
+        {
+            RawPush(sql, (cmd) =>
+            {
+                if (configureCommand != null)
+                    configureCommand?.Invoke(cmd);
+
+                cmd.ExecuteNonQuery();
+            });
         }
 
         /// <summary>

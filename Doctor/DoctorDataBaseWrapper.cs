@@ -1,11 +1,13 @@
-﻿using SqlExplorer;
+﻿using Microsoft.Data.SqlClient;
+using SqlExplorer;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Windows.Documents;
 
 namespace Doctor
 {
-    public static class Permissions
+    public static class DoctorDataBasePermissions
     {
         public static readonly int ADMIN = 1;
         public static readonly int MANAGER = 2;
@@ -492,41 +494,85 @@ namespace Doctor
                 return medicines;
             }
 
+            public int InsertReturnId(string name, int quantity)
+            {
+                int newId = 0;
+
+                string sql = @"
+                    INSERT INTO medicines (name, quantity)
+                    VALUES (@name, @quantity);
+                    SELECT CAST(SCOPE_IDENTITY() AS int);";
+
+                sqlConnectorPointer.RawPush(sql, command =>
+                {
+                    command.Parameters.AddWithValue("@name", name);
+                    command.Parameters.AddWithValue("@quantity", quantity);
+
+                    if (command.Connection.State != ConnectionState.Open)
+                        command.Connection.Open();
+
+                    newId = Convert.ToInt32(command.ExecuteScalar());
+                });
+
+                return newId;
+            }
+
             public void SaveAll(List<Medicine> medicines)
             {
                 foreach (var med in medicines)
                 {
-                    string sql = @"
-                        UPDATE medicines 
-                        SET name = @name, quantity = @quantity
-                        WHERE id = @id;
-
-                        IF @@ROWCOUNT = 0
-                        BEGIN
-                            INSERT INTO medicines (id, name, quantity) VALUES (@id, @name, @quantity);
-                        END";
-
-                    sqlConnectorPointer.Push(sql, cmd =>
+                    if (med.id == null)
                     {
-                        cmd.Parameters.AddWithValue("@id", med.id ?? 0);
-                        cmd.Parameters.AddWithValue("@name", med.name);
-                        cmd.Parameters.AddWithValue("@quantity", med.quantity);
-                    });
+                        med.id = InsertReturnId(med.name, med.quantity);
 
-                    sqlConnectorPointer.Push("DELETE FROM interchangeable_medicines WHERE medicine_id = @medId", cmd =>
-                    {
-                        cmd.Parameters.AddWithValue("@medId", med.id ?? 0);
-                    });
+                        sqlConnectorPointer.Push("DELETE FROM interchangeable_medicines WHERE medicine_id = @medId", cmd =>
+                        {
+                            cmd.Parameters.AddWithValue("@medId", med.id);
+                        });
 
-                    foreach (var interMed in med.interchangleMedicineList)
-                    {
-                        sqlConnectorPointer.Push(@"
+                        if(med.interchangleMedicineList != null)
+                        {
+                            foreach (var interMed in med.interchangleMedicineList)
+                            {
+                                sqlConnectorPointer.Push(@"
                             INSERT INTO interchangeable_medicines (medicine_id, interchangeable_id)
                             VALUES (@medId, @interId)", cmd =>
+                                {
+                                    cmd.Parameters.AddWithValue("@medId", med.id);
+                                    cmd.Parameters.AddWithValue("@interId", interMed.id ?? 0);
+                                });
+                            }
+                        }
+                    }
+                    else
+                    {
+                        string updateSql = @"
+                        UPDATE medicines 
+                        SET name = @name, quantity = @quantity
+                        WHERE id = @id";
+
+                        sqlConnectorPointer.Push(updateSql, cmd =>
                         {
-                            cmd.Parameters.AddWithValue("@medId", med.id ?? 0);
-                            cmd.Parameters.AddWithValue("@interId", interMed.id ?? 0);
+                            cmd.Parameters.AddWithValue("@id", med.id);
+                            cmd.Parameters.AddWithValue("@name", med.name);
+                            cmd.Parameters.AddWithValue("@quantity", med.quantity);
                         });
+
+                        sqlConnectorPointer.Push("DELETE FROM interchangeable_medicines WHERE medicine_id = @medId", cmd =>
+                        {
+                            cmd.Parameters.AddWithValue("@medId", med.id);
+                        });
+
+                        foreach (var interMed in med.interchangleMedicineList)
+                        {
+                            sqlConnectorPointer.Push(@"
+                    INSERT INTO interchangeable_medicines (medicine_id, interchangeable_id)
+                    VALUES (@medId, @interId)", cmd =>
+                            {
+                                cmd.Parameters.AddWithValue("@medId", med.id);
+                                cmd.Parameters.AddWithValue("@interId", interMed.id ?? 0);
+                            });
+                        }
                     }
                 }
             }
@@ -539,7 +585,7 @@ namespace Doctor
         }
     }
 
-    public class Permission
+    public class Permission : IEquatable<Permission>
     {
         public int id;
         public string name;
@@ -548,6 +594,23 @@ namespace Doctor
         {
             this.id = id;
             this.name = name;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is Permission permission &&
+                   id == permission.id;
+        }
+
+        public bool Equals(Permission other)
+        {
+            return !(other is null) &&
+                   id == other.id;
+        }
+
+        public override int GetHashCode()
+        {
+            return 1877310944 + id.GetHashCode();
         }
     }
 

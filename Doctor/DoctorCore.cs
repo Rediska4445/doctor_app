@@ -18,6 +18,7 @@ namespace Doctor
             wrapper = new DoctorDataBaseWrapper(sqlConnector);
         }
 
+
         public readonly List<string> InitSqlQueries = new List<string>
         {
             @"
@@ -72,7 +73,7 @@ namespace Doctor
             IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'medicines')
             BEGIN
                 CREATE TABLE medicines (
-                    id INT PRIMARY KEY,
+                    id INT IDENTITY(1,1) PRIMARY KEY,
                     name VARCHAR(96),
                     quantity INT
                 );
@@ -123,7 +124,10 @@ namespace Doctor
                 INSERT INTO permissions(id, name) VALUES (2, 'Manager');
 
             IF NOT EXISTS (SELECT 1 FROM permissions WHERE id = 3)
-                INSERT INTO permissions(id, name) VALUES (3, 'Viewer');
+                INSERT INTO permissions(id, name) VALUES (3, 'Doctor');
+
+            IF NOT EXISTS (SELECT 1 FROM permissions WHERE id = 4)
+                INSERT INTO permissions(id, name) VALUES (4, 'Viewer');
             "
         };
 
