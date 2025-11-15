@@ -3,6 +3,7 @@ using SqlExplorer;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using System.Windows.Documents;
 
 namespace Doctor
@@ -226,6 +227,15 @@ namespace Doctor
             }
         }
 
+        public class MedicineNotFoundException : Exception
+        {
+            public MedicineNotFoundException() { }
+
+            public MedicineNotFoundException(string message) : base(message) { }
+
+            public MedicineNotFoundException(string message, Exception innerException) : base(message, innerException) { }
+        }
+
         public class DiseaseService
         {
             private SqlConnector sqlConnectorPointer;
@@ -235,9 +245,10 @@ namespace Doctor
                 this.sqlConnectorPointer = sqlConnectorPointer;
             }
 
-            public void LoadAll(Action<Disease> onDiseaseLoaded, Action onCompleted)
+            public List<Disease> LoadAll()
             {
                 var diseases = new List<Disease>();
+                 
                 sqlConnectorPointer.Read("SELECT id, name, procedures FROM disease", reader =>
                 {
                     diseases.Add(new Disease(reader.GetString(1), reader.GetString(2), new List<Medicine>(), new List<Symptom>())
@@ -268,9 +279,14 @@ namespace Doctor
                     JOIN medicines m ON dm.medicines_id = m.id", reader =>
                 {
                     int diseaseId = reader.GetInt32(0);
-                    var medicine = new Medicine(reader.GetString(2), reader.GetInt32(3), new List<Medicine>()) { id = reader.GetInt32(1) };
+                    var medicine = new Medicine(reader.GetString(2), reader.GetInt32(3), new List<Medicine>())
+                    {
+                        id = reader.GetInt32(1)
+                    };
+
                     if (!medicines.ContainsKey(diseaseId))
                         medicines[diseaseId] = new List<Medicine>();
+
                     medicines[diseaseId].Add(medicine);
                 });
 
@@ -281,16 +297,23 @@ namespace Doctor
                     JOIN medicines m ON im.interchangeable_id = m.id", reader =>
                 {
                     int medicineId = reader.GetInt32(0);
-                    var med = new Medicine(reader.GetString(2), reader.GetInt32(3), new List<Medicine>()) { id = reader.GetInt32(1) };
+                    var med = new Medicine(reader.GetString(2), reader.GetInt32(3), new List<Medicine>())
+                    {
+                        id = reader.GetInt32(1)
+                    };
+
                     if (!interchangeable.ContainsKey(medicineId))
                         interchangeable[medicineId] = new List<Medicine>();
+
                     interchangeable[medicineId].Add(med);
                 });
 
+                // Сопоставление симптомов и лекарств с болезнями
                 foreach (var disease in diseases)
                 {
                     if (symptoms.TryGetValue(disease.id ?? 0, out var symList))
                         disease.Symptoms = symList;
+
                     if (medicines.TryGetValue(disease.id ?? 0, out var medList))
                     {
                         foreach (var med in medList)
@@ -300,147 +323,160 @@ namespace Doctor
                         }
                         disease.Medicines = medList;
                     }
-
-                    onDiseaseLoaded?.Invoke(disease);
                 }
 
-                onCompleted?.Invoke();
+                return diseases;
+            }
+
+            private string NormalizeSymptomName(string rawName)
+            {
+                var parts = rawName.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                                   .Select(s => s.Trim())
+                                   .Where(s => !string.IsNullOrEmpty(s));
+                return string.Join(", ", parts);
             }
 
             public void SaveAll(List<Disease> diseases)
             {
+                // Загрузка всех лекарств
+                var allMedicines = new Dictionary<string, Medicine>(StringComparer.OrdinalIgnoreCase);
+                sqlConnectorPointer.Read("SELECT id, name, quantity FROM medicines", reader =>
+                {
+                    string name = reader.GetString(1);
+                    allMedicines[name] = new Medicine(name, reader.GetInt32(2), new List<Medicine>())
+                    {
+                        id = reader.GetInt32(0)
+                    };
+                });
+
+                // Загрузка всех симптомов
+                var allSymptoms = new Dictionary<string, Symptom>(StringComparer.OrdinalIgnoreCase);
+                sqlConnectorPointer.Read("SELECT id, name FROM symptoms", reader =>
+                {
+                    string normalizedName = NormalizeSymptomName(reader.GetString(1));
+                    allSymptoms[normalizedName] = new Symptom(normalizedName) { id = reader.GetInt32(0) };
+                });
+
                 foreach (var disease in diseases)
                 {
-                    string sqlDisease = @"
-                        UPDATE disease SET name = @name, procedures = @procedures WHERE id = @id;
-                        IF @@ROWCOUNT = 0
-                        BEGIN
-                            INSERT INTO disease (id, name, procedures) VALUES (@id, @name, @procedures);
-                        END";
-
-                    sqlConnectorPointer.Push(sqlDisease, cmd =>
-                    {
-                        cmd.Parameters.AddWithValue("@id", disease.id ?? 0);
-                        cmd.Parameters.AddWithValue("@name", disease.name);
-                        cmd.Parameters.AddWithValue("@procedures", disease.procedures);
-                    });
-
-                    // Обновить симптомы: удалить старые связи и добавить заново
-                    sqlConnectorPointer.Push("DELETE FROM diseases_symptoms WHERE disease_id = @id", cmd =>
-                    {
-                        cmd.Parameters.AddWithValue("@id", disease.id ?? 0);
-                    });
-
-                    foreach (var symptom in disease.Symptoms)
-                    {
-                        sqlConnectorPointer.Push("INSERT INTO diseases_symptoms (disease_id, symptom_id) VALUES (@id, @symptomId)", cmd =>
-                        {
-                            cmd.Parameters.AddWithValue("@id", disease.id ?? 0);
-                            cmd.Parameters.AddWithValue("@symptomId", symptom.id ?? 0);
-                        });
-                    }
-
-                    // Обновить лекарства болезни аналогично: удалить старые связи и добавить заново
-                    sqlConnectorPointer.Push("DELETE FROM diseases_medicines WHERE diseases_id = @id", cmd =>
-                    {
-                        cmd.Parameters.AddWithValue("@id", disease.id ?? 0);
-                    });
-
+                    // Обработка лекарств с проверкой
+                    var medicinesWithId = new List<Medicine>();
                     foreach (var med in disease.Medicines)
                     {
-                        // Обновим или вставим лекарство
-                        string sqlMed = @"
-                UPDATE medicines SET name = @medName, quantity = @quantity WHERE id = @medId;
-                IF @@ROWCOUNT = 0
-                BEGIN
-                    INSERT INTO medicines (id, name, quantity) VALUES (@medId, @medName, @quantity);
-                END";
+                        if (!allMedicines.TryGetValue(med.name, out var foundMed))
+                            throw new MedicineNotFoundException(med.name);
+                        medicinesWithId.Add(foundMed);
+                    }
 
-                        sqlConnectorPointer.Push(sqlMed, cmd =>
-                        {
-                            cmd.Parameters.AddWithValue("@medId", med.id ?? 0);
-                            cmd.Parameters.AddWithValue("@medName", med.name);
-                            cmd.Parameters.AddWithValue("@quantity", med.quantity);
-                        });
+                    int? diseaseId = disease.id;
 
-                        // Добавим связь болезнь-лекарство с указанием количества
-                        sqlConnectorPointer.Push("INSERT INTO diseases_medicines (medicines_id, diseases_id, quantity) VALUES (@medId, @diseaseId, @quantity)", cmd =>
+                    // Если id передан, проверяем существует ли болезнь с таким id
+                    if (diseaseId != null)
+                    {
+                        int count = 0;
+                        sqlConnectorPointer.Read("SELECT COUNT(*) FROM disease WHERE id = @id", reader =>
                         {
-                            cmd.Parameters.AddWithValue("@medId", med.id ?? 0);
-                            cmd.Parameters.AddWithValue("@diseaseId", disease.id ?? 0);
-                            cmd.Parameters.AddWithValue("@quantity", med.quantity);
-                        });
+                            count = reader.GetInt32(0);
+                        }, cmd => cmd.Parameters.AddWithValue("@id", diseaseId.Value));
+
+                        if (count == 0)
+                            diseaseId = null; // Если болезни с таким id нет, считаем как новая
+                    }
+
+                    // Если id не передан или болезнь с ним не найдена, пытаемся найти по имени
+                    if (diseaseId == null)
+                    {
+                        sqlConnectorPointer.Read("SELECT id FROM disease WHERE name = @name", reader =>
+                        {
+                            diseaseId = reader.GetInt32(0);
+                        }, cmd => cmd.Parameters.AddWithValue("@name", disease.name));
+                    }
+
+                    // Если болезнь по имени тоже не найдена, вставляем новую
+                    if (diseaseId == null)
+                    {
+                        int newId = 0;
+                        sqlConnectorPointer.Push(@"
+                INSERT INTO disease (name, procedures) VALUES (@name, @procedures);
+                SELECT CAST(SCOPE_IDENTITY() AS INT);",
+                            cmd =>
+                            {
+                                cmd.Parameters.AddWithValue("@name", disease.name);
+                                cmd.Parameters.AddWithValue("@procedures", disease.procedures);
+                                newId = (int)cmd.ExecuteScalar();
+                            });
+                        diseaseId = newId;
+                    }
+                    else
+                    {
+                        // Иначе обновляем существующую
+                        sqlConnectorPointer.Push("UPDATE disease SET name=@name, procedures=@procedures WHERE id=@id",
+                            cmd =>
+                            {
+                                cmd.Parameters.AddWithValue("@name", disease.name);
+                                cmd.Parameters.AddWithValue("@procedures", disease.procedures);
+                                cmd.Parameters.AddWithValue("@id", diseaseId.Value);
+                            });
+                    }
+
+                    // Обновляем связи лекарств
+                    sqlConnectorPointer.Push("DELETE FROM diseases_medicines WHERE diseases_id=@diseaseId",
+                        cmd => cmd.Parameters.AddWithValue("@diseaseId", diseaseId.Value));
+                    foreach (var med in medicinesWithId)
+                    {
+                        sqlConnectorPointer.Push(
+                            "INSERT INTO diseases_medicines (medicines_id, diseases_id, quantity) VALUES (@medId, @diseaseId, @qty)",
+                            cmd =>
+                            {
+                                cmd.Parameters.AddWithValue("@medId", med.id.Value);
+                                cmd.Parameters.AddWithValue("@diseaseId", diseaseId.Value);
+                                cmd.Parameters.AddWithValue("@qty", med.quantity);
+                            });
+                    }
+
+                    // Обработка симптомов с добавлением новых, если нет в базе
+                    var rawSymptoms = disease.Symptoms?.Select(s => s.name) ?? new List<string>();
+                    var normalizedSymptomNames = NormalizeSymptomName(string.Join(",", rawSymptoms))
+                                                    .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                                                    .Select(s => s.Trim())
+                                                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                                                    .ToList();
+
+                    var symptomsToLink = new List<Symptom>();
+                    foreach (var symName in normalizedSymptomNames)
+                    {
+                        if (!allSymptoms.TryGetValue(symName, out var symptom))
+                        {
+                            int newSymptomId = 0;
+                            sqlConnectorPointer.Push(
+                                "INSERT INTO symptoms (name) VALUES (@name); SELECT CAST(SCOPE_IDENTITY() AS INT);",
+                                cmd =>
+                                {
+                                    cmd.Parameters.AddWithValue("@name", symName);
+                                    newSymptomId = (int)cmd.ExecuteScalar();
+                                });
+                            symptom = new Symptom(symName) { id = newSymptomId };
+                            allSymptoms[symName] = symptom;
+                        }
+                        symptomsToLink.Add(symptom);
+                    }
+
+                    // Обновляем связи с симптомами
+                    sqlConnectorPointer.Push("DELETE FROM diseases_symptoms WHERE disease_id=@diseaseId",
+                        cmd => cmd.Parameters.AddWithValue("@diseaseId", diseaseId.Value));
+                    foreach (var sym in symptomsToLink)
+                    {
+                        sqlConnectorPointer.Push(
+                            "INSERT INTO diseases_symptoms (disease_id, symptom_id) VALUES (@diseaseId, @symptomId)",
+                            cmd =>
+                            {
+                                cmd.Parameters.AddWithValue("@diseaseId", diseaseId.Value);
+                                cmd.Parameters.AddWithValue("@symptomId", sym.id.Value);
+                            });
                     }
                 }
             }
 
-            public Disease GetDiseaseByName(string name)
-            {
-                Disease disease = null;
-
-                // 1. Основная информация о болезни
-                sqlConnectorPointer.Read("SELECT id, name, procedures FROM disease WHERE name = @name", reader =>
-                {
-                    int id = reader.GetInt32(0);
-                    string diseaseName = reader.GetString(1);
-                    string procedures = reader.GetString(2);
-                    disease = new Disease(diseaseName, procedures, new List<Medicine>(), new List<Symptom>()) { id = id };
-                }, cmd =>
-                {
-                    cmd.Parameters.AddWithValue("@name", name);
-                });
-
-                if (disease == null)
-                    return null;
-
-                int diseaseId = disease.id ?? 0;
-
-                // 2. Симптомы
-                sqlConnectorPointer.Read(@"
-                    SELECT s.id, s.name 
-                    FROM symptoms s
-                    JOIN diseases_symptoms ds ON s.id = ds.symptom_id
-                    WHERE ds.disease_id = @diseaseId", reader =>
-                {
-                    disease.Symptoms.Add(new Symptom(reader.GetString(1)) { id = reader.GetInt32(0) });
-                }, cmd =>
-                {
-                    cmd.Parameters.AddWithValue("@diseaseId", diseaseId);
-                });
-
-                // 3. Лекарства с привязкой к болезни и quantity из diseases_medicines
-                var medicines = new List<Medicine>();
-                sqlConnectorPointer.Read(@"
-                    SELECT m.id, m.name, dm.quantity 
-                    FROM medicines m
-                    JOIN diseases_medicines dm ON m.id = dm.medicines_id
-                    WHERE dm.diseases_id = @diseaseId", reader =>
-                {
-                    medicines.Add(new Medicine(reader.GetString(1), reader.GetInt32(2), new List<Medicine>()) { id = reader.GetInt32(0) });
-                }, cmd =>
-                {
-                    cmd.Parameters.AddWithValue("@diseaseId", diseaseId);
-                });
-
-                // 4. Взаимозаменяемые лекарства для каждого medicine
-                foreach (var med in medicines)
-                {
-                    sqlConnectorPointer.Read(@"
-                        SELECT m2.id, m2.name, m2.quantity
-                        FROM medicines m2
-                        JOIN interchangeable_medicines im ON m2.id = im.interchangeable_id
-                        WHERE im.medicine_id = @medicineId", reader =>
-                    {
-                        med.interchangleMedicineList.Add(new Medicine(reader.GetString(1), reader.GetInt32(2), new List<Medicine>()) { id = reader.GetInt32(0) });
-                    }, cmd =>
-                    {
-                        cmd.Parameters.AddWithValue("@medicineId", med.id);
-                    });
-                }
-
-                disease.Medicines = medicines;
-                return disease;
-            }
         }
 
         public class MedicineService
@@ -650,6 +686,15 @@ namespace Doctor
         {
             id = null;
 
+            this.name = name;
+            this.procedures = procedures;
+            Medicines = medicines;
+            Symptoms = symptoms;
+        }
+
+        public Disease(int? id, string name, string procedures, List<Medicine> medicines, List<Symptom> symptoms)
+        {
+            this.id = id;
             this.name = name;
             this.procedures = procedures;
             Medicines = medicines;

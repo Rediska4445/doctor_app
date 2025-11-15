@@ -3,7 +3,11 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Подключиться" Height="450" Width="350" ResizeMode="NoResize" WindowStartupLocation="CenterScreen">
     <Grid Margin="20">
-        <TabControl>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="105*"/>
+            <RowDefinition Height="289*"/>
+        </Grid.RowDefinitions>
+        <TabControl Grid.RowSpan="2">
             <!-- Login Tab -->
             <TabItem Header="Войти">
                 <Grid Margin="20">

@@ -13,6 +13,7 @@ namespace Doctor
 {
     class DiseaseView : INotifyPropertyChanged
     {
+        public int? Id { get; set; }
         private string name;
         private string procedures;
         private string symptoms;
@@ -83,6 +84,54 @@ namespace Doctor
 
     public partial class MainWindow : Window
     {
+        public MainWindow()
+        {
+            InitializeComponent();
+
+            FunctionsList.Items.Add("Болезни");
+
+            if (DoctorCore.core.user.permission.id == DoctorDataBasePermissions.ADMIN)
+            {
+                FunctionsList.Items.Add("Лекарства");
+                FunctionsList.Items.Add("Рецепт");
+            }
+            else if (DoctorCore.core.user.permission.id == DoctorDataBasePermissions.MANAGER)
+            {
+                FunctionsList.Items.Add("Лекарства");
+            }
+            else if (DoctorCore.core.user.permission.id == DoctorDataBasePermissions.DOCTOR)
+            {
+                FunctionsList.Items.Add("Лекарства");
+                FunctionsList.Items.Add("Рецепт");
+            } 
+        }
+
+        private ObservableCollection<MedicineView> medicinesCollection = new ObservableCollection<MedicineView>();
+        private ObservableCollection<DiseaseView> diseasesCollection = new ObservableCollection<DiseaseView>();
+
+        private void LoadDiseases()
+        {
+            diseasesCollection.Clear();
+
+            var diseases = DoctorCore.core.wrapper.diseaseServiceObj.LoadAll();
+
+            foreach (var disease in diseases)
+            {
+                var diseaseView = new DiseaseView
+                {
+                    Id = disease.id,
+                    Name = disease.name,
+                    Procedures = disease.procedures,
+                    Symptoms = string.Join(", ", disease.Symptoms?.ConvertAll(s => s.name) ?? new List<string>()),
+                    Medicines = string.Join(", ", disease.Medicines?.ConvertAll(m => m.name) ?? new List<string>())
+                };
+
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    diseasesCollection.Add(diseaseView);
+                });
+            }
+        }
         private void LoadMedicines()
         {
             medicinesCollection.Clear();
@@ -105,68 +154,57 @@ namespace Doctor
             });
         }
 
-        public MainWindow()
-        {
-            InitializeComponent();
-        }
-
-        private ObservableCollection<MedicineView> medicinesCollection = new ObservableCollection<MedicineView>();
-
-        private ObservableCollection<DiseaseView> diseasesCollection = new ObservableCollection<DiseaseView>();
-
-        private void LoadDiseases()
-        {
-            diseasesCollection.Clear();
-
-            DoctorCore.core.wrapper.diseaseServiceObj.LoadAll(
-                onDiseaseLoaded: disease =>
-                {
-                    var diseaseView = new DiseaseView
-                    {
-                        Name = disease.name,
-                        Procedures = disease.procedures,
-                        Symptoms = string.Join(", ", disease.Symptoms?.ConvertAll(s => s.name) ?? new List<string>()),
-                        Medicines = string.Join("; ", disease.Medicines?.ConvertAll(m =>
-                        {
-                            var interNames = m.interchangleMedicineList != null && m.interchangleMedicineList.Count > 0
-                                ? $"(заменяемые: {string.Join(", ", m.interchangleMedicineList.ConvertAll(im => im.name))})"
-                                : "";
-                            return $"{m.name} x{m.quantity} {interNames}";
-                        }) ?? new List<string>())
-                    };
-
-                    Application.Current.Dispatcher.Invoke(() => diseasesCollection.Add(diseaseView));
-                },
-                onCompleted: () =>
-                {
-
-                });
-        }
-
         private void FunctionsList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             var listBox = sender as ListBox;
-            var selectedItem = listBox.SelectedItem as ListBoxItem;
+            var selectedItem = listBox.SelectedItem as string;
 
             if (selectedItem == null)
                 return;
 
-            string selection = selectedItem.Content.ToString();
+            string selection = selectedItem;
 
             switch (selection)
             {
                 case "Болезни":
                     var dataGrid = new DataGrid
                     {
-                        AutoGenerateColumns = true,
-                        IsReadOnly = true,
+                        AutoGenerateColumns = false,
+                        IsReadOnly = false,
                         Margin = new Thickness(5),
                         ItemsSource = diseasesCollection
                     };
 
+                    dataGrid.Columns.Add(new DataGridTextColumn { Header = "Id", Binding = new Binding("Id"), IsReadOnly = true });
+
+                    dataGrid.Columns.Add(new DataGridTextColumn
+                    {
+                        Header = "Name",
+                        Binding = new Binding("Name") { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged }
+                    });
+
+                    dataGrid.Columns.Add(new DataGridTextColumn
+                    {
+                        Header = "Procedures",
+                        Binding = new Binding("Procedures") { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged }
+                    });
+
+                    dataGrid.Columns.Add(new DataGridTextColumn
+                    {
+                        Header = "Symptoms",
+                        Binding = new Binding("Symptoms") { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged }
+                    });
+
+                    dataGrid.Columns.Add(new DataGridTextColumn
+                    {
+                        Header = "Medicines",
+                        Binding = new Binding("Medicines") { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged }
+                    });
+
                     FunctionContent.Content = dataGrid;
 
-                    diseasesCollection.Clear();
+                    dataGrid.CellEditEnding += DataGridDisease_CellEditEnding;
+
                     LoadDiseases();
 
                     break;
@@ -174,8 +212,8 @@ namespace Doctor
                     var dataGridMed = new DataGrid
                     {
                         AutoGenerateColumns = false, 
-                        IsReadOnly = DoctorCore.core.user.permission.id == DoctorDataBasePermissions.ADMIN 
-                        || DoctorCore.core.user.permission.id == DoctorDataBasePermissions.MANAGER,
+                        IsReadOnly = !(DoctorCore.core.user.permission.id == DoctorDataBasePermissions.ADMIN 
+                        || DoctorCore.core.user.permission.id == DoctorDataBasePermissions.MANAGER),
                         Margin = new Thickness(5),
                         ItemsSource = medicinesCollection,
                     };
@@ -243,6 +281,74 @@ namespace Doctor
         }
 
         private List<Medicine> changedMedicines = new List<Medicine>();
+        private List<Disease> changedDiseases = new List<Disease>();
+
+        private void DataGridDisease_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
+        {
+            if (e.EditAction != DataGridEditAction.Commit) return;
+
+            var editedView = e.Row.Item as DiseaseView;
+            if (editedView == null) return;
+
+            var editingElement = e.EditingElement as TextBox;
+            string editedText = editingElement?.Text ?? "";
+
+            switch (e.Column.Header.ToString())
+            {
+                case "Name":
+                    editedView.Name = editedText;
+                    break;
+                case "Procedures":
+                    editedView.Procedures = editedText;
+                    break;
+                case "Symptoms":
+                    editedView.Symptoms = editedText;
+                    break;
+                case "Medicines":
+                    editedView.Medicines = editedText;
+                    break;
+            }
+
+            var medicineNames = string.IsNullOrWhiteSpace(editedView.Medicines)
+                ? new List<string>()
+                : editedView.Medicines.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => s.Trim())
+                    .ToList();
+
+            var medicines = medicineNames.Select(name => new Medicine(name, 0, new List<Medicine>())).ToList();
+
+            var symptomNames = string.IsNullOrWhiteSpace(editedView.Symptoms)
+                ? new List<string>()
+                : editedView.Symptoms.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => s.Trim())
+                    .ToList();
+
+            var symptoms = symptomNames.Select(name => new Symptom(name)).ToList();
+
+            int? diseaseId = null;
+
+            if (editedView.GetType().GetProperty("Id") != null)
+            {
+                var prop = editedView.GetType().GetProperty("Id");
+                if (prop != null)
+                    diseaseId = prop.GetValue(editedView) as int?;
+            }
+
+            var disease = new Disease(diseaseId, editedView.Name, editedView.Procedures, medicines, symptoms);
+
+            var existing = changedDiseases.FirstOrDefault(d => d.id == disease.id);
+            if (existing != null)
+            {
+                existing.name = disease.name;
+                existing.procedures = disease.procedures;
+                existing.Medicines = disease.Medicines;
+                existing.Symptoms = disease.Symptoms;
+            }
+            else
+            {
+                changedDiseases.Add(disease);
+            }
+        }
 
         private void DataGridMed_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
         {
@@ -254,16 +360,14 @@ namespace Doctor
                     var editingElement = e.EditingElement as TextBox;
                     string editedText = editingElement?.Text ?? "";
 
-                    // Обновляем строку interchangeable и список взаимозаменяемых лекарств
                     if (e.Column.Header.ToString() == "Interchangeable")
                     {
                         editedItem.Interchangeable = editedText;
-                        // Парсим строку в список
+
                         var interchangeableNames = editedText.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
                                                             .Select(s => s.Trim())
                                                             .ToList();
 
-                        // Обновляем InterchangeableList на основании парсинга
                         editedItem.InterchangeableList = medicinesCollection
                             .Where(m => interchangeableNames.Contains(m.Name) && m.Id != editedItem.Id)
                             .Select(m => new Medicine(m.Name, m.Quantity, m.InterchangeableList) { id = m.Id })
@@ -279,17 +383,14 @@ namespace Doctor
                             editedItem.Quantity = qty;
                     }
 
-                    // Создаём объект Medicine для сохранения
                     var medicine = new Medicine(editedItem.Name, editedItem.Quantity, editedItem.InterchangeableList)
                     {
                         id = editedItem.Id
                     };
 
-                    // Добавляем в список изменений
                     var existing = changedMedicines.FirstOrDefault(m => m.id == medicine.id);
                     if (existing != null)
                     {
-                        // Обновляем данные
                         existing.name = medicine.name;
                         existing.quantity = medicine.quantity;
                         existing.interchangleMedicineList = medicine.interchangleMedicineList;
@@ -313,17 +414,28 @@ namespace Doctor
 
         private void SaveButton_Click(object sender, RoutedEventArgs e)
         {
-            ConsoleTextBox.Text += changedMedicines.Count;
-
-            foreach(Medicine med in changedMedicines)
+            try
             {
-                ConsoleTextBox.Text += "\nSUKA: " + med.id + " " + med.name + " " + med.quantity + "COUNT: "
-                    + (med.interchangleMedicineList == null ? "lol" : med.interchangleMedicineList.Count.ToString()) + "\n";
+                DoctorCore.core.wrapper.medicineServiceObj.SaveAll(changedMedicines);
+                changedMedicines.Clear();
+
+                DoctorCore.core.wrapper.diseaseServiceObj.SaveAll(changedDiseases);
+                changedDiseases.Clear();
             }
-
-            DoctorCore.core.wrapper.medicineServiceObj.SaveAll(changedMedicines);
-
-            changedMedicines.Clear();
+            catch (MedicineNotFoundException ex)
+            {
+                MessageBox.Show($"Ошибка: {ex.InnerException}. Лекарства {ex.Message} нет на складе.",
+                                "Ошибка сохранения",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Error);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Произошла ошибка: {ex.Message}",
+                                "Ошибка",
+                                MessageBoxButton.OK,
+                                MessageBoxImage.Error);
+            }
         }
     }
 }

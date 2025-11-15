@@ -54,7 +54,7 @@ namespace Doctor
             IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'disease')
             BEGIN
                 CREATE TABLE disease (
-                    id INT PRIMARY KEY,
+                    id INT IDENTITY(1,1) PRIMARY KEY,
                     name VARCHAR(96),
                     procedures VARCHAR(1024)
                 );
@@ -64,7 +64,7 @@ namespace Doctor
             IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'symptoms')
             BEGIN
                 CREATE TABLE symptoms (
-                    id INT PRIMARY KEY,
+                    id INT IDENTITY(1,1) PRIMARY KEY,
                     name VARCHAR(256)
                 );
             END;

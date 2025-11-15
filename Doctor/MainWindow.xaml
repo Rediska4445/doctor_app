@@ -31,9 +31,7 @@
 
             <!-- Список функций -->
             <ListBox Grid.Row="0" Name="FunctionsList" SelectionChanged="FunctionsList_SelectionChanged" KeyboardNavigation.TabIndex="1" Margin="0">
-                <ListBoxItem>Болезни</ListBoxItem>
-                <ListBoxItem>Лекарства</ListBoxItem>
-                <ListBoxItem>Рецепт</ListBoxItem>
+
             </ListBox>
 
             <!-- Консоль -->
