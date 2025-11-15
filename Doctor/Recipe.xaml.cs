@@ -24,5 +24,15 @@ namespace Doctor
                 printDialog.PrintVisual(this.ScrollViewList as Visual, "Больничная справка");
             }
         }
+
+        private void DiagnosisTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+
+        }
+
+        private void RecipeTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+
+        }
     }
 }

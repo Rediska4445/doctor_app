@@ -79,34 +79,6 @@
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="5">
-                        <TextBlock Text="Диагноз:" Width="200" Padding="10,0,10,0" FontWeight="Medium"/>
-                        <TextBox Margin="5,0,0,0" Height="60"
-                                 Name="DiagnosisTextBox"
-                                MinWidth="310" 
-                                TextWrapping="Wrap"
-                                AcceptsReturn="True"
-                                VerticalScrollBarVisibility="Disabled"/>
-                    </StackPanel>
-
-                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="6">
-                        <TextBlock Text="Симптомы:" Width="200" Padding="10,0,10,0"  FontWeight="Medium"/>
-                        <TextBox Margin="5,0,0,0" Height="150" Name="SymptomsTextBox"
-                                MinWidth="310" 
-                                TextWrapping="Wrap"
-                                AcceptsReturn="True"
-                                VerticalScrollBarVisibility="Disabled"/>
-                    </StackPanel>
-
-                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="7">
-                        <TextBlock Text="Общий осмотр врача:" Width="200"  Padding="10,0,1,0" FontWeight="Medium"/>
-                        <TextBox Margin="5,0,0,0" Height="100"  Name="GeneralInspectionTextBox"
-                                MinWidth="310" 
-                                TextWrapping="Wrap"
-                                AcceptsReturn="True"
-                                VerticalScrollBarVisibility="Disabled"/>
-                    </StackPanel>
-
-                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="8">
                         <TextBlock Text="Рекомендации:" Width="200" Padding="10,0,10,0" FontWeight="Medium"/>
                         <TextBox Margin="5,0,0,0" Name="RecommendationsTextBox"
                                 MinWidth="310" 
@@ -114,9 +86,39 @@
                                 AcceptsReturn="True"
                                 VerticalScrollBarVisibility="Disabled"/>
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="9">
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="6">
+                        <TextBlock Text="Диагноз:" Width="200" Padding="10,0,10,0" FontWeight="Medium"/>
+                        <TextBox Margin="5,0,0,0" Height="60"
+                                 Name="DiagnosisTextBox"
+                                MinWidth="310" 
+                                TextWrapping="Wrap"
+                                AcceptsReturn="True"
+                                VerticalScrollBarVisibility="Disabled" TextChanged="DiagnosisTextBox_TextChanged"/>
+                    </StackPanel>
+
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="7">
+                        <TextBlock Text="Общий осмотр врача:" Width="200"  Padding="10,0,1,0" FontWeight="Medium"/>
+                        <TextBox Margin="5,0,0,0" Height="100" Name="GeneralInspectionTextBox"
+                                MinWidth="310" 
+                                TextWrapping="Wrap"
+                                AcceptsReturn="True"
+                                VerticalScrollBarVisibility="Disabled"/>
+                    </StackPanel>
+                    
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="8">
                         <TextBlock Text="Рецепт:" Width="200" Padding="10,0,10,0" FontWeight="Medium"/>
-                        <TextBox Margin="5,0,0,0" Height="100" Name="RecipeTextBox"
+                        <TextBox Margin="5,0,0,0" Height="120" Name="RecipeTextBox"
+                                MinWidth="310" 
+                                TextWrapping="Wrap"
+                                AcceptsReturn="True"
+                                VerticalScrollBarVisibility="Disabled" TextChanged="RecipeTextBox_TextChanged"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="9">
+                        <TextBlock Text="Симптомы:" Width="200" Padding="10,0,10,0"  FontWeight="Medium"/>
+                        <TextBox Margin="5,0,0,0" Height="150" Name="SymptomsTextBox"
                                 MinWidth="310" 
                                 TextWrapping="Wrap"
                                 AcceptsReturn="True"

@@ -201,6 +201,10 @@ namespace Doctor
                         Binding = new Binding("Medicines") { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged }
                     });
 
+                    var rowStyle = new Style(typeof(DataGridRow));
+                    rowStyle.Setters.Add(new Setter(DataGridRow.ContextMenuProperty, CreateDeleteMenu()));
+                    dataGrid.RowStyle = rowStyle;
+
                     FunctionContent.Content = dataGrid;
 
                     dataGrid.CellEditEnding += DataGridDisease_CellEditEnding;
@@ -276,7 +280,39 @@ namespace Doctor
                 default:
                     FunctionContent.Content = null;
                     break;
+            }
+        }
 
+        private ContextMenu CreateDeleteMenu()
+        {
+            var contextMenu = new ContextMenu();
+            var deleteItem = new MenuItem { Header = "Очистить запись (маркировать на удаление)" };
+            deleteItem.Click += DeleteMenu_Click;
+            contextMenu.Items.Add(deleteItem);
+            return contextMenu;
+        }
+
+        private void DeleteMenu_Click(object sender, RoutedEventArgs e)
+        {
+            if (FunctionContent.Content is DataGrid dataGrid)
+            {
+                var selectedDiseaseView = dataGrid.SelectedItem as DiseaseView;
+                if (selectedDiseaseView != null)
+                {
+                    selectedDiseaseView.Name = "";
+                    selectedDiseaseView.Procedures = "";
+                    selectedDiseaseView.Symptoms = "";
+                    selectedDiseaseView.Medicines = "";
+
+                    var diseaseToDelete = new Disease(selectedDiseaseView.Id, null, null, new List<Medicine>(), new List<Symptom>());
+
+                    var existing = changedDiseases.FirstOrDefault(d => d.id == diseaseToDelete.id);
+                    if (existing != null)
+                    {
+                        changedDiseases.Remove(existing);
+                    }
+                    changedDiseases.Add(diseaseToDelete);
+                }
             }
         }
 
@@ -349,7 +385,6 @@ namespace Doctor
                 changedDiseases.Add(disease);
             }
         }
-
         private void DataGridMed_CellEditEnding(object sender, DataGridCellEditEndingEventArgs e)
         {
             if (e.EditAction == DataGridEditAction.Commit)
