@@ -12,6 +12,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <TextBlock Text="Doctor" FontWeight="Bold" FontSize="28"
@@ -20,6 +21,8 @@
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" CanContentScroll="False" >
                 <Grid Margin="10" Background="White" MinHeight="650" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Name="ScrollViewList">
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
@@ -63,7 +66,19 @@
                                 VerticalScrollBarVisibility="Disabled"/>
                     </StackPanel>
 
+                    <!-- Дата начала лечения -->
                     <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="3">
+                        <TextBlock Text="Дата начала лечения:" Width="200" Padding="10,0,10,0" FontWeight="SemiBold"/>
+                        <DatePicker Margin="5,0,0,0" Name="StartDatePicker" MinWidth="310"/>
+                    </StackPanel>
+
+                    <!-- Дата окончания лечения -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="4">
+                        <TextBlock Text="Дата окончания лечения:" Width="200" Padding="10,0,10,0" FontWeight="SemiBold"/>
+                        <DatePicker Margin="5,0,0,0" Name="EndDatePicker" MinWidth="310"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="5">
                         <TextBlock Text="Классификация врача:" Width="200" Padding="10,0,10,0"  FontWeight="SemiBold"/>
                         <TextBox Margin="5,0,0,0" Name="DoctorClassificationTextBox" 
                                 MinWidth="310" 
@@ -72,13 +87,13 @@
                                 VerticalScrollBarVisibility="Disabled"/>
                     </StackPanel>
 
-                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="4">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="6">
                         <TextBlock Text="Адрес больницы:" Width="200" Padding="10,0,10,0" FontWeight="SemiBold"/>
                         <TextBox Margin="5,0,0,0" Name="HospitalAddressTextBox" 
                                 MinWidth="310" VerticalScrollBarVisibility="Disabled"/>
                     </StackPanel>
 
-                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="5">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="7">
                         <TextBlock Text="Рекомендации:" Width="200" Padding="10,0,10,0" FontWeight="Medium"/>
                         <TextBox Margin="5,0,0,0" Name="RecommendationsTextBox"
                                 MinWidth="310" 
@@ -87,7 +102,7 @@
                                 VerticalScrollBarVisibility="Disabled"/>
                     </StackPanel>
 
-                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="6">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="8">
                         <TextBlock Text="Диагноз:" Width="200" Padding="10,0,10,0" FontWeight="Medium"/>
                         <TextBox Margin="5,0,0,0" Height="60"
                                  Name="DiagnosisTextBox"
@@ -98,7 +113,7 @@
                     </StackPanel>
 
 
-                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="7">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="9">
                         <TextBlock Text="Общий осмотр врача:" Width="200"  Padding="10,0,1,0" FontWeight="Medium"/>
                         <TextBox Margin="5,0,0,0" Height="100" Name="GeneralInspectionTextBox"
                                 MinWidth="310" 
@@ -107,7 +122,7 @@
                                 VerticalScrollBarVisibility="Disabled"/>
                     </StackPanel>
                     
-                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="8">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="10">
                         <TextBlock Text="Рецепт:" Width="200" Padding="10,0,10,0" FontWeight="Medium"/>
                         <TextBox Margin="5,0,0,0" Height="120" Name="RecipeTextBox"
                                 MinWidth="310" 
@@ -116,7 +131,7 @@
                                 VerticalScrollBarVisibility="Disabled" TextChanged="RecipeTextBox_TextChanged"/>
                     </StackPanel>
 
-                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="9">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,10,5" Grid.Row="11">
                         <TextBlock Text="Симптомы:" Width="200" Padding="10,0,10,0"  FontWeight="Medium"/>
                         <TextBox Margin="5,0,0,0" Height="150" Name="SymptomsTextBox"
                                 MinWidth="310" 
@@ -128,7 +143,11 @@
             </ScrollViewer>
 
             <Button Content="Печать" Grid.Row="2" Width="554" Height="35" HorizontalAlignment="Center" Margin="0,10,0,10"
-                    Click="PrintButton_Click"/>
+            Click="PrintButton_Click"/>
+
+            <ComboBox Grid.Row="3" Width="200" Margin="0,0,0,10" HorizontalAlignment="Center" SelectionChanged="ComboBox_SelectionChanged" >
+                <ComboBoxItem>Болезни</ComboBoxItem>
+            </ComboBox>
         </Grid>
     </Border>
 </UserControl>

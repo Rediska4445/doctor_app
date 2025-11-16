@@ -812,6 +812,26 @@ namespace Doctor
             Medicines = medicines;
             Symptoms = symptoms;
         }
+
+        public Disease(int? id, string name, string procedures)
+        {
+            this.id = id;
+            this.name = name;
+            this.procedures = procedures;
+        }
+
+        public Disease(int? id, string name, string procedures, string symptoms, string medicines)
+        {
+            this.id = id;
+            this.name = name;
+            this.procedures = procedures;
+            this.Symptoms = symptoms.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                         .Select(s => new Symptom(s.Trim()))
+                         .ToList();
+            this.Medicines = medicines.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+             .Select(s => new Medicine(s.Trim()))
+             .ToList();
+        }
     }
 
     public class Symptom
@@ -822,6 +842,11 @@ namespace Doctor
         public Symptom(string name)
         {
             this.name = name;
+        }
+
+        public override string ToString()
+        {
+            return name;
         }
     }
 
@@ -845,6 +870,16 @@ namespace Doctor
             this.name = name;
             this.quantity = quantity;
             this.interchangleMedicineList = interchangleMedicineList;
+        }
+
+        public Medicine(string name)
+        {
+            this.name = name;
+        }
+
+        public override string ToString()
+        {
+            return name;
         }
     }
 }
