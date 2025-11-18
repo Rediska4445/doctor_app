@@ -62,7 +62,7 @@
             <!-- пустой столбец для отступа -->
 
             <!-- Кнопка Сохранить справа на всю ширину -->
-            <Button Grid.Column="2" Content="Сохранить" Height="30" HorizontalAlignment="Stretch" Click="SaveButton_Click"/>
+            <Button Grid.Column="2" Content="Сохранить" Height="30" HorizontalAlignment="Stretch" Name="SaveButton" Click="SaveButton_Click"/>
         </Grid>
 
     </Grid>

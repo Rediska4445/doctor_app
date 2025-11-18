@@ -97,13 +97,18 @@ namespace Doctor
             }
             else if (DoctorCore.core.user.permission.id == DoctorDataBasePermissions.MANAGER)
             {
+                FunctionsList.Items.Remove("Болезни");
                 FunctionsList.Items.Add("Лекарства");
             }
             else if (DoctorCore.core.user.permission.id == DoctorDataBasePermissions.DOCTOR)
             {
                 FunctionsList.Items.Add("Лекарства");
                 FunctionsList.Items.Add("Рецепт");
-            } 
+            }
+            else if (DoctorCore.core.user.permission.id == DoctorDataBasePermissions.VIEWER)
+            {
+                SaveButton.IsEnabled = false;
+            }
         }
 
         private ObservableCollection<MedicineView> medicinesCollection = new ObservableCollection<MedicineView>();
@@ -204,6 +209,8 @@ namespace Doctor
                     var rowStyle = new Style(typeof(DataGridRow));
                     rowStyle.Setters.Add(new Setter(DataGridRow.ContextMenuProperty, CreateDeleteMenu()));
                     dataGrid.RowStyle = rowStyle;
+
+                    dataGrid.IsReadOnly = DoctorCore.core.user.permission.id == DoctorDataBasePermissions.VIEWER;
 
                     FunctionContent.Content = dataGrid;
 
